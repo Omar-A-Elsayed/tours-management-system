@@ -18,10 +18,16 @@ userRouter
 
 userRouter.route('/user-stats').get(userController.getUSerStats);
 
+userRouter.patch(
+  '/updatePassword',
+  authController.protect,
+  authController.updatePassword,
+);
+
 userRouter
   .route('/:id')
   .get(userController.getUser)
-  .patch(userController.updateUser)
+  // .patch(userController.updateUser)
   .delete(userController.deleteUser);
 
 module.exports = userRouter;

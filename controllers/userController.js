@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { query } = require('express');
 const User = require('./../models/userModel');
 const { APIFeatures, catchAsync, AppError } = require('./../utils');
+const authController = require('./authController');
 
 // exports.getAllUsers = async (req, res) => {
 //   // res.status(500).json({
@@ -128,30 +129,6 @@ exports.createUser = async (req, res) => {
     });
   }
 };
-
-exports.updateUser = catchAsync(async (req, res) => {
-  // res.status(500).json({
-  //   status: 'error',
-  //   message: 'This route is not defined',
-  // });
-  if (req.body.password) {
-    if (!req.body.passwordConfirm)
-      throw new AppError('must provide a password confirm', 400);
-    if (req.body.password !== req.body.passwordConfirm)
-      throw new AppError('passwords are not the same', 400);
-    delete req.body.passwordConfirm;
-  }
-  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-    new: true, // Return document after update
-    runValidators: true,
-  });
-  res.status(200).json({
-    status: 'success',
-    data: {
-      user,
-    },
-  });
-});
 
 exports.deleteUser = async (req, res) => {
   // res.status(500).json({
