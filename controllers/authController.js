@@ -99,6 +99,36 @@ exports.restrictTo = (...roles) => {
   };
 };
 
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, password, passwordConfirm } = req.body;
+
+  if (!currentPassword || !password || !passwordConfirm) {
+    return next(new AppError('Please provide all password fields.', 400));
+  }
+
+  const user = await User.findById(req.user.id).select('+password');
+
+  if (!user) {
+    return next(new AppError('User not found', 404));
+  }
+
+  const isCorrect = await user.correctPassword(currentPassword, user.password);
+  if (!isCorrect) {
+    return next(new AppError('The current password is incorrect.', 401));
+  }
+
+  if (password !== passwordConfirm) {
+    return next(new AppError('Passwords do not match.', 400));
+  }
+
+  user.password = password;
+  await user.save();
+  res.status(200).json({
+    status: 'success',
+    message: 'Password updated successfully. Please Login again!',
+  });
+});
+
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   // 1) Get user pased on userEmail
   const user = await User.findOne({ email: req.body.email });
