@@ -97,7 +97,7 @@ exports.getTour = catchAsync(async (req, res, next) => {
   validateId(req.params.id);
 
   // controller logic
-  const tour = await Tour.findById(req.params.id);
+  const tour = await Tour.findById(req.params.id).populate('reviews');
 
   validateData(tour, 'Tour not found');
 
