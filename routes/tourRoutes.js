@@ -1,10 +1,20 @@
 const express = require('express');
 const tourController = require('./../controllers/tourController');
 const authController = require('./../controllers/authController');
-
+const reviewRouter = require('./../routes/reviewRoutes');
 const tourRouter = express.Router();
 
 // tourRouter.param('id', tourController.checkID);
+
+// tourRouter
+//   .route('/:tourId/reviews')
+//   .post(
+//     authController.protect,
+//     authController.restrictTo('user'),
+//     reviewController.createReview,
+//   );
+
+tourRouter.use('/:tourId/reviews', reviewRouter);
 
 tourRouter
   .route('/top-5-cheap')
