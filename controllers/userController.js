@@ -3,6 +3,7 @@ const { query } = require('express');
 const User = require('./../models/userModel');
 const { APIFeatures, catchAsync, AppError } = require('./../utils');
 const authController = require('./authController');
+const factory = require('./handlerFactory');
 
 const filterObj = (obj, ...allowedFields) => {
   const newObj = {};
@@ -118,6 +119,8 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
     data: null,
   });
 });
+
+exports.deleteUser = factory.deleteOne(User);
 
 exports.getUSerStats = async (req, res) => {
   try {
