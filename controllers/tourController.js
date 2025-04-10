@@ -7,6 +7,7 @@ const {
   validateId,
   validateData,
 } = require('./../utils');
+const factory = require('./handlerFactory');
 const mongoose = require('mongoose');
 
 exports.aliasTopTours = (req, res, next) => {
@@ -149,21 +150,8 @@ exports.updateTour = catchAsync(async (req, res, next) => {
 });
 
 // Delete Tour
-exports.deleteTour = catchAsync(async (req, res, next) => {
-  // validate inputs
-  validateId(req.params.id);
 
-  // controller logic
-  const tour = await Tour.findByIdAndRemove(req.params.id);
-
-  // validate outputs
-  validateData(tour, 'Tour not found');
-
-  res.status(204).json({
-    status: 'success',
-    data: null,
-  });
-});
+exports.deleteTour = factory.deleteOne(Tour);
 
 exports.getTourStats = catchAsync(async (req, res, next) => {
   const stats = await Tour.aggregate([
