@@ -13,57 +13,9 @@ const filterObj = (obj, ...allowedFields) => {
   return newObj;
 };
 
-exports.getAllUsers = async (req, res) => {
-  try {
-    const features = new APIFeatures(User, req.query)
-      .filter()
-      .sort()
-      .limiting();
-    await features.pagination();
-    const users = await features.query;
+exports.getAllUsers = factory.getAll(User);
 
-    res.status(200).json({
-      status: 'success',
-      results: users.length,
-      data: {
-        users,
-      },
-    });
-  } catch (err) {
-    // console.debug(err);
-    res.status(404).json({
-      status: 'fail',
-      message: err.message,
-    });
-  }
-};
-
-exports.getUser = async (req, res) => {
-  // res.status(500).json({
-  //   status: 'error',
-  //   message: 'This route is not defined',
-  // });
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      res.status(404).json({
-        status: 'fail',
-        message: 'no user found',
-      });
-    }
-    res.status(200).json({
-      status: 'success',
-      data: {
-        user,
-      },
-    });
-  } catch (err) {
-    res.status(404).json({
-      status: 'fail',
-      message: err,
-    });
-  }
-};
+exports.getUser = factory.getOne(User);
 
 exports.updateMe = catchAsync(async (req, res, next) => {
   // 1) Create error if user POSTs password data
