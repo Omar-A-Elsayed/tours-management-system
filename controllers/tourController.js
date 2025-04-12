@@ -128,29 +128,9 @@ exports.createTour = catchAsync(async (req, res, next) => {
 });
 
 // Update Tour
-exports.updateTour = catchAsync(async (req, res, next) => {
-  // validate inputs
-  validateId(req.params.id);
-
-  // controller logic
-  const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  // validate outputs
-  validateData(tour, 'Tour not found');
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      tour,
-    },
-  });
-});
+exports.updateTour = factory.updateOne(Tour);
 
 // Delete Tour
-
 exports.deleteTour = factory.deleteOne(Tour);
 
 exports.getTourStats = catchAsync(async (req, res, next) => {
