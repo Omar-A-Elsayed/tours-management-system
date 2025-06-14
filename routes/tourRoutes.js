@@ -31,6 +31,10 @@ tourRouter
   );
 
 tourRouter
+  .route('/tours-within/:distance/center/:latlng/unit/:unit')
+  .get(tourController.getToursWithin);
+
+tourRouter
   .route('/')
   .get(tourController.getAllTours)
   .post(
