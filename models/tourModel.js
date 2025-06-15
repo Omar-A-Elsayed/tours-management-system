@@ -163,11 +163,11 @@ tourSchema.post(/^find/, function (docs, next) {
   next();
 });
 
-tourSchema.pre('aggregate', function (next) {
-  console.log(this.pipeline());
+// tourSchema.pre('aggregate', function (next) {
+//   console.log(this.pipeline());
 
-  next();
-});
+//   next();
+// });
 
 const Tour = mongoose.model('Tour', tourSchema);
 
