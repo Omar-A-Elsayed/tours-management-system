@@ -32,13 +32,13 @@ const reviewSchema = new mongoose.Schema(
   },
 );
 
-reviewSchema.pre(/^find/, function (next) {
-  this.populate({
-    path: 'user',
-    select: 'name',
-  });
-  next();
-});
+// reviewSchema.pre(/^find/, function (next) {
+//   this.populate({
+//     path: 'user',
+//     // select: 'name',
+//   });
+//   next();
+// });
 
 reviewSchema.statics.calcAverageRatings = async function (tourId) {
   const stats = await this.aggregate([
