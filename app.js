@@ -24,7 +24,47 @@ app.set('views', path.join(__dirname, 'views'));
 // 1) MIDDLEWARES
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+
+        scriptSrc: ["'self'", 'https://unpkg.com'],
+
+        styleSrc: [
+          "'self'",
+
+          "'unsafe-inline'",
+
+          'https://unpkg.com',
+
+          'https://fonts.googleapis.com',
+        ],
+
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+
+        imgSrc: [
+          "'self'",
+
+          'data:',
+
+          'https://res.cloudinary.com',
+
+          'https://unpkg.com',
+
+          'https://a.tile.openstreetmap.org',
+
+          'https://b.tile.openstreetmap.org',
+
+          'https://c.tile.openstreetmap.org',
+        ],
+
+        connectSrc: ["'self'"],
+      },
+    },
+  }),
+);
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
