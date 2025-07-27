@@ -17,3 +17,6 @@ build/
 .prettierrc
 
 dev-data/
+
+# Parcel cache
+/.cache

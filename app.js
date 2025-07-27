@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
+const cookieParser = require('cookie-parser');
 
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
@@ -30,7 +31,11 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
 
-        scriptSrc: ["'self'", 'https://unpkg.com'],
+        scriptSrc: [
+          "'self'",
+          'https://unpkg.com',
+          'https://cdnjs.cloudflare.com',
+        ],
 
         styleSrc: [
           "'self'",
@@ -60,7 +65,7 @@ app.use(
           'https://c.tile.openstreetmap.org',
         ],
 
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", 'ws:'],
       },
     },
   }),
@@ -77,6 +82,7 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 app.use(express.json());
+app.use(cookieParser());
 
 // Data sanization against NoSql query injection
 app.use(mongoSanitize());
