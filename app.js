@@ -24,6 +24,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 // 1) MIDDLEWARES
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/dist', express.static(path.join(__dirname, 'public', 'dist')));
 
 app.use(
   helmet({
@@ -96,6 +97,17 @@ app.use((req, res, next) => {
 });
 
 // Routes
+
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.locals.cssFile = '/dist/bundle.css';
+    res.locals.jsFile = '/dist/bundle.js';
+  } else {
+    res.locals.cssFile = '/css/style.css';
+    res.locals.jsFile = '/js/bundle.js';
+  }
+  next();
+});
 
 app.use('/', viewRouter);
 app.use('/api/v1/tours', tourRouter);
