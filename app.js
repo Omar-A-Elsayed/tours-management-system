@@ -104,7 +104,7 @@ app.use((req, res, next) => {
     res.locals.jsFile = '/dist/bundle.js';
   } else {
     res.locals.cssFile = '/css/style.css';
-    res.locals.jsFile = '/js/bundle.js';
+    res.locals.jsFile = '/dist/bundle.js';
   }
   next();
 });
