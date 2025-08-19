@@ -147,9 +147,9 @@ exports.restrictTo = (...roles) => {
 };
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
-  const { currentPassword, password, passwordConfirm } = req.body;
+  const { passwordCurrent, password, passwordConfirm } = req.body;
 
-  if (!currentPassword || !password || !passwordConfirm) {
+  if (!passwordCurrent || !password || !passwordConfirm) {
     return next(new AppError('Please provide all password fields.', 400));
   }
 
@@ -159,7 +159,7 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     return next(new AppError('User not found', 404));
   }
 
-  const isCorrect = await user.correctPassword(currentPassword, user.password);
+  const isCorrect = await user.correctPassword(passwordCurrent, user.password);
   if (!isCorrect) {
     return next(new AppError('The current password is incorrect.', 401));
   }
