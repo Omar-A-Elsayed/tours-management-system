@@ -19,7 +19,12 @@ userRouter.route('/user-stats').get(userController.getUSerStats);
 
 userRouter.patch('/updatePassword', authController.updatePassword);
 userRouter.get('/me', userController.getMe, userController.getUser);
-userRouter.patch('/updateMe', userController.updateMe);
+userRouter.patch(
+  '/updateMe',
+  userController.uploadUserPhoto,
+  userController.resizeUserPhoto,
+  userController.updateMe,
+);
 userRouter.delete('/deleteMe', userController.deleteMe);
 
 userRouter.use(authController.restrictTo('admin'));
