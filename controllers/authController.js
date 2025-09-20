@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { catchAsync, AppError, verifyToken, sendEmail } = require('../utils');
+const Email = require('../utils/email');
 const User = require('./../models/userModel');
 
 const signToken = (id) => {
@@ -39,6 +40,8 @@ exports.signup = catchAsync(async (req, res, next) => {
     passwordConfirm: req.body.passwordConfirm,
     role: req.body.role,
   });
+  const url = `${req.protocol}://${req.get('host')}/me`;
+  await new Email(newUser, url).sendWelcome();
   createSendToken(newUser, 201, res);
 });
 
@@ -88,8 +91,8 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // 2) Verification token
   const decoded = await verifyToken(token);
-  console.log('================================');
-  console.log('Decoded ->', decoded);
+  // console.log('================================');
+  // console.log('Decoded ->', decoded);
 
   // 3) Check if user still exists
   const freshUser = await User.findById(decoded.id);
@@ -188,18 +191,11 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   // 3) Send it to user's email
-  const resetURL = `${req.protocol}://${req.get(
-    'host',
-  )}/api/v1/users/resetPassword/${resetToken}`;
-
-  const message = `Forgot your password? Submit a PATCH request with your new password to: ${resetURL}.\nIf you didn't forgot your password, please ignore this email`;
-
   try {
-    await sendEmail({
-      email: user.email,
-      subject: 'Your password reset token (valid for 10 min)',
-      message,
-    });
+    const resetURL = `${req.protocol}://${req.get(
+      'host',
+    )}/api/v1/users/resetPassword/${resetToken}`;
+    await new Email(user, resetURL).sendPasswordReset();
 
     res.status(200).json({
       status: 'success',
@@ -212,7 +208,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
     return next(
       new AppError(
-        'There was an error sending the email, Try again later!',
+        `There was an error sending the email, Try again later! ${err.message}`,
         500,
       ),
     );
