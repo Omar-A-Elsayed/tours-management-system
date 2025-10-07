@@ -50,7 +50,19 @@ exports.createBookingCheckout = catchAsync(async (req, res, next) => {
   res.redirect(req.originalUrl.split('?')[0]);
 });
 
-exports.getAllBookings = factory.getAll(Booking);
+exports.getAllBookings = catchAsync(async (req, res, next) => {
+  let filter = {};
+  if (req.params.tourId) filter = { tour: req.params.tourId };
+  if (req.params.userId) filter = { user: req.params.userId };
+  const bookings = await Booking.find(filter);
+  res.status(200).json({
+    status: 'success',
+    results: bookings.length,
+    data: {
+      bookings,
+    },
+  });
+});
 exports.getBooking = factory.getOne(Booking);
 exports.createBooking = factory.createOne(Booking);
 exports.updateBooking = factory.updateOne(Booking);
