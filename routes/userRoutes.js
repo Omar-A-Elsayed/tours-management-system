@@ -2,6 +2,7 @@ const express = require('express');
 
 const userController = require('./../controllers/userController');
 const authController = require('./../controllers/authController');
+const bookingRouter = require('./bookingRoutes');
 
 const userRouter = express.Router();
 
@@ -38,5 +39,7 @@ userRouter
   .route('/:id')
   .get(userController.getUser)
   .delete(userController.deleteUser);
+
+userRouter.use('/:userId/bookings', bookingRouter);
 
 module.exports = userRouter;
