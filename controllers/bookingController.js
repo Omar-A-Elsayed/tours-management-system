@@ -10,13 +10,30 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   if (!tour) {
     return next(new AppError('No tour found with that ID', 404));
   }
+  const { dateId } = req.body;
+  if (!dateId) {
+    return next(new AppError('Please select a date for your tour', 400));
+  }
+  const tourDate = tour.startDates.id(dateId);
+  if (!tourDate) {
+    return next(new AppError('No tour date found with that ID', 404));
+  }
+  if (tourDate.participants >= tour.maxGroupSize) {
+    return next(
+      new AppError(
+        'This tour date is fully booked. Please choose another date.',
+        400,
+      ),
+    );
+  }
+
   // 2) Create checkout session
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
-    success_url: `${req.protocol}://${req.get('host')}/?tour=${req.params.tourId}&user=${req.user.id}&price=${tour.price}`,
+    success_url: `${req.protocol}://${req.get('host')}/?tour=${req.params.tourId}&user=${req.user.id}&price=${tour.price}&dateId=${dateId}`,
     cancel_url: `${req.protocol}://${req.get('host')}/tour/${tour.slug}`,
     customer_email: req.user.email, // Email of the customer
-    client_reference_id: req.params.tourId, // Reference ID for the tour
+    client_reference_id: dateId, // Reference to the tour date
     line_items: [
       {
         price_data: {
@@ -44,9 +61,9 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
 
 exports.createBookingCheckout = catchAsync(async (req, res, next) => {
   // This is only TEMPORARY, because it's UNSECURE: everyone can make bookings without paying
-  const { tour, user, price } = req.query;
-  if (!tour && !user && !price) return next();
-  await Booking.create({ tour, user, price });
+  const { tour, user, price, dateId } = req.query;
+  if (!tour && !user && !price && !dateId) return next();
+  await Booking.create({ tour, user, price, startDate: dateId });
   res.redirect(req.originalUrl.split('?')[0]);
 });
 

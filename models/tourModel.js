@@ -66,8 +66,19 @@ const tourSchema = new mongoose.Schema(
       type: Date,
       default: Date.now(),
     },
-    startDates: [Date],
-
+    startDates: [
+      {
+        date: Date,
+        participants: {
+          type: Number,
+          default: 0,
+        },
+        soldOut: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
     secretTour: {
       type: Boolean,
       default: false,
