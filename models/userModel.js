@@ -22,6 +22,12 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Email address is required'],
     validate: [validator.isEmail, 'Please fill a valid email address'],
   },
+  emailConfirmToken: String,
+  emailConfirmExpires: Date,
+  emailConfirmed: {
+    type: Boolean,
+    default: false,
+  },
   photo: {
     type: String,
     default: 'default.jpg',
@@ -107,15 +113,22 @@ userSchema.methods.createPasswordResetToken = function () {
     .update(resetToken)
     .digest('hex');
 
-  console.log(
-    { resetToken },
-    'Reset token after hashing: ',
-    this.passwordResetToken,
-  );
-
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
 
   return resetToken;
+};
+
+userSchema.methods.createEmailConfirmToken = function () {
+  const confirmToken = crypto.randomBytes(32).toString('hex');
+
+  this.emailConfirmToken = crypto
+    .createHash('sha256')
+    .update(confirmToken)
+    .digest('hex');
+
+  this.emailConfirmExpires = Date.now() + 10 * 60 * 1000;
+
+  return confirmToken;
 };
 
 const User = mongoose.model('User', userSchema);
