@@ -40,9 +40,54 @@ exports.signup = catchAsync(async (req, res, next) => {
     passwordConfirm: req.body.passwordConfirm,
     role: req.body.role,
   });
-  const url = `${req.protocol}://${req.get('host')}/me`;
-  await new Email(newUser, url).sendWelcome();
-  createSendToken(newUser, 201, res);
+  // 1. Create email confirm token
+  const confirmToken = newUser.createEmailConfirmToken();
+  await newUser.save({ validateBeforeSave: false });
+
+  // 2. Send it to user's email
+  try {
+    const confirmURL = `${req.protocol}://${req.get('host')}/api/v1/users/confirmEmail/${confirmToken}`;
+    await new Email(newUser, confirmURL).sendEmailConfirmation();
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Token sent to email! Please confirm your account.',
+    });
+  } catch (err) {
+    newUser.emailConfirmToken = undefined;
+    newUser.emailConfirmExpires = undefined;
+    await newUser.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError(
+        'There was an error sending the email. Try again later!',
+        500,
+      ),
+    );
+  }
+});
+
+exports.confirmEmail = catchAsync(async (req, res, next) => {
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(req.params.token)
+    .digest('hex');
+
+  const user = await User.findOne({
+    emailConfirmToken: hashedToken,
+    emailConfirmExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return next(new AppError('Token is invalid or has expired', 400));
+  }
+
+  user.emailConfirmed = true;
+  user.emailConfirmToken = undefined;
+  user.emailConfirmExpires = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  createSendToken(user, 200, res);
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -58,6 +103,16 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!user || !(await user.correctPassword(password, user.password))) {
     return next(new AppError('Incorrect email or password', 401));
   }
+
+  if (!user.emailConfirmed) {
+    return next(
+      new AppError(
+        'You have not confirmed your email yet. Please check your inbox.',
+        401,
+      ),
+    );
+  }
+
   // 3) If everything ok, send token to client
   createSendToken(user, 200, res);
 });

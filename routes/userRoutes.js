@@ -13,6 +13,8 @@ userRouter.get('/logout', authController.logout);
 userRouter.post('/forgotPassword', authController.forgotPassword);
 userRouter.patch('/resetPassword/:token', authController.resetPassword);
 
+userRouter.get('/confirmEmail/:token', authController.confirmEmail);
+
 // Protect all routs after this middleware
 userRouter.use(authController.protect);
 
