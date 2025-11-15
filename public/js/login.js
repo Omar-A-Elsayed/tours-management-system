@@ -1,18 +1,16 @@
 /* eslint-disable */
 import axios from 'axios';
 import { showAlerts } from './alerts';
+import api, { setAccessToken } from './api';
 export const login = async (email, password) => {
   try {
-    const res = await axios({
-      method: 'POST',
-      url: 'http://127.0.0.1:3000/api/v1/users/login',
-      data: {
-        email,
-        password,
-      },
+    const res = await api.post('/api/v1/users/login', {
+      email,
+      password,
     });
 
     if (res.data.status === 'success') {
+      setAccessToken(res.data.accessToken);
       showAlerts('success', 'Logged in successfully!');
       window.setTimeout(() => {
         location.assign('/');
@@ -26,11 +24,12 @@ export const login = async (email, password) => {
 
 export const logout = async () => {
   try {
-    const res = await axios({
-      method: 'GET',
-      url: 'http://127.0.0.1:3000/api/v1/users/logout',
-    });
-    if ((res.data.status = 'success')) location.reload(true);
+    const res = await api.get('api/v1/users/logout');
+
+    if (res.data.status === 'success') {
+      setAccessToken(null);
+      location.reload(true);
+    }
   } catch (err) {
     showAlerts('error', 'Error logging out! Try again.');
   }
