@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { catchAsync, AppError, verifyToken, sendEmail } = require('../utils');
+const util = require('util');
 const Email = require('../utils/email');
 const User = require('./../models/userModel');
 
@@ -10,27 +11,112 @@ const signToken = (id) => {
   });
 };
 
-const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user._id);
+const signRefreshToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+  });
+};
+
+const createSendToken = async (user, statusCode, res) => {
+  const accessToken = signToken(user._id);
+  const refreshToken = signRefreshToken(user._id);
+
+  user.refreshTokens.push(refreshToken);
+  await user.save({ validateBeforeSave: false });
+
   const cookieOptions = {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
     ),
     httpOnly: true,
   };
-  res.cookie('jwt', token, cookieOptions);
+  res.cookie('jwt-refresh', refreshToken, cookieOptions);
 
   // Remove password from output
   user.password = undefined;
+  user.refreshTokens = undefined;
 
   res.status(statusCode).json({
     status: 'success',
-    token,
+    accessToken,
     data: {
       user,
     },
   });
 };
+
+exports.refreshToken = catchAsync(async (req, res, next) => {
+  const oldRefreshToken = req.cookies['jwt-refresh'];
+
+  // check if the refresh token is present
+  if (!oldRefreshToken) {
+    return next(new AppError('You are not logged in.', 401));
+  }
+
+  // 2) Verify the refresh token
+  let decoded;
+  try {
+    decoded = await util.promisify(jwt.verify)(
+      oldRefreshToken,
+      process.env.JWT_REFRESH_SECRET,
+    );
+  } catch (err) {
+    return next(new AppError('Invalid token. Please log in again.', 403));
+  }
+
+  // 3) Check if the user still exists & the token is in the database
+  const user = await User.findById(decoded.id);
+
+  if (!user) {
+    return next(
+      new AppError(
+        'The user belonging to this token does no longer exist.',
+        401,
+      ),
+    );
+  }
+
+  if (!user.refreshTokens.includes(oldRefreshToken)) {
+    user.refreshTokens = [];
+    await user.save({ validateBeforeSave: false });
+    return next(
+      new AppError('Token has been revoked. Please log in again.', 403),
+    );
+  }
+
+  // 4) Check if user changed password after the token was issued
+  if (user.changedPasswordAfter(decoded.iat)) {
+    return next(
+      new AppError('User recently changed password! Please log in again.', 401),
+    );
+  }
+
+  // 5) If everything is ok, generate new tokens
+  // Rotate refresh token
+  const newAccessToken = signToken(user._id);
+  const newRefreshToken = signRefreshToken(user._id);
+
+  // Update refresh tokens in database
+  user.refreshTokens = user.refreshTokens.filter(
+    (token) => token !== oldRefreshToken,
+  );
+  user.refreshTokens.push(newRefreshToken);
+  await user.save({ validateBeforeSave: false });
+
+  // Set new refresh token in cookie
+  const cookieOptions = {
+    expires: new Date(
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
+    ),
+    httpOnly: true,
+  };
+  res.cookie('jwt-refresh', newRefreshToken, cookieOptions);
+
+  res.status(200).json({
+    status: 'success',
+    accessToken: newAccessToken,
+  });
+});
 
 exports.signup = catchAsync(async (req, res, next) => {
   const newUser = await User.create({
@@ -87,7 +173,7 @@ exports.confirmEmail = catchAsync(async (req, res, next) => {
   user.emailConfirmExpires = undefined;
   await user.save({ validateBeforeSave: false });
 
-  createSendToken(user, 200, res);
+  await createSendToken(user, 200, res);
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -114,16 +200,31 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   // 3) If everything ok, send token to client
-  createSendToken(user, 200, res);
+  await createSendToken(user, 200, res);
 });
 
-exports.logout = (req, res) => {
-  res.cookie('jwt', 'loggedout', {
+exports.logout = catchAsync(async (req, res, next) => {
+  const refreshToken = req.cookies['jwt-refresh'];
+  if (refreshToken) {
+    // remove refresh token from database
+    const decoded = await util
+      .promisify(jwt.verify)(refreshToken, process.env.JWT_REFRESH_SECRET)
+      .catch(() => null);
+
+    if (decoded) {
+      await User.findByIdAndUpdate(decoded.id, {
+        $pull: { refreshTokens: refreshToken },
+      });
+    }
+  }
+  // Clear cookie
+  res.cookie('jwt-refresh', 'loggedout', {
     expires: new Date(Date.now()),
     httpOnly: true,
   });
+
   res.status(200).json({ status: 'success' });
-};
+});
 
 exports.protect = catchAsync(async (req, res, next) => {
   // 1)Getting token & check if it's there
@@ -133,10 +234,7 @@ exports.protect = catchAsync(async (req, res, next) => {
     req.headers.authorization.startsWith('Bearer')
   ) {
     token = req.headers.authorization.split(' ')[1];
-  } else if (req.cookies.jwt) {
-    token = req.cookies.jwt;
   }
-  // console.log('Token ->', token);
 
   if (!token) {
     return next(
@@ -145,9 +243,17 @@ exports.protect = catchAsync(async (req, res, next) => {
   }
 
   // 2) Verification token
-  const decoded = await verifyToken(token);
-  // console.log('================================');
-  // console.log('Decoded ->', decoded);
+  let decoded;
+  try {
+    decoded = await util.promisify(jwt.verify)(token, process.env.JWT_SECRET);
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return next(
+        new AppError('Your token has expired! Please log in again.', 401),
+      );
+    }
+    return next(new AppError('Invalid token. Please log in again.', 401));
+  }
 
   // 3) Check if user still exists
   const freshUser = await User.findById(decoded.id);
@@ -167,10 +273,12 @@ exports.protect = catchAsync(async (req, res, next) => {
 
 // Only for rendered pages, no errors!
 exports.isLoggedIn = async (req, res, next) => {
-  if (req.cookies.jwt) {
+  if (req.cookies['jwt-refresh']) {
     try {
-      const decoded = await verifyToken(req.cookies.jwt);
-
+      const decoded = await util.promisify(jwt.verify)(
+        req.cookies['jwt-refresh'],
+        process.env.JWT_REFRESH_SECRET,
+      );
       // Check if user still exists
       const freshUser = await User.findById(decoded.id);
       if (!freshUser) {
@@ -227,6 +335,11 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   }
 
   user.password = password;
+  user.passwordConfirm = passwordConfirm;
+
+  // Invalidate all existing refresh tokens
+  user.refreshTokens = [];
+
   await user.save();
   res.status(200).json({
     status: 'success',
@@ -289,6 +402,9 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   user.password = req.body.password;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
+
+  user.refreshTokens = [];
+
   await user.save();
 
   // 3) Log the user in, send JWT
